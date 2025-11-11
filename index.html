@@ -1,224 +1,701 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🩺 Juego de Médicos</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Juego de Médicos</title>
+  <meta name="description" content="Juego de Médicos — simulador con modo clásico, verdadero/falso, minijuegos y eventos sorpresa." />
   <style>
-    body {
-      margin: 0;
-      font-family: "Segoe UI", sans-serif;
-      background: linear-gradient(180deg, #e3f2fd, #bbdefb);
-      overflow: hidden;
+    :root{
+      --bg:#041021; --panel:#071522; --accent:#06b6d4; --accent2:#7c3aed; --muted:#9fb1c6;
+      --good:#10b981; --bad:#ef4444; --glass:rgba(255,255,255,0.03);
+      --max-width:1200px; --ui-radius:12px; font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; color:#eaf3fb;
     }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#021226,#02101a);}
+    .app{max-width:var(--max-width);margin:12px auto;padding:14px}
+    header{display:flex;align-items:center;gap:12px}
+    .logo{width:60px;height:60px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+    h1{margin:0;font-size:18px}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
 
-    canvas {
-      background-color: #fafafa;
-      display: block;
-      margin: 0 auto;
-    }
+    .game-wrap{display:grid;grid-template-columns:1fr 360px;gap:14px;margin-top:12px}
+    .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:var(--ui-radius);box-shadow:0 12px 30px rgba(2,6,23,0.6);backdrop-filter: blur(6px)}
+    .stage{position:relative;min-height:720px;border-radius:var(--ui-radius);overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
 
-    #hud {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: #0d47a1;
-      font-weight: bold;
-      font-size: 18px;
-    }
+    /* background layers */
+    .bg-layer{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .6s ease,filter .6s ease}
+    .bg-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,10,16,0.36),rgba(2,6,12,0.5));pointer-events:none;mix-blend-mode:multiply}
 
-    #mensaje {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #0d47a1;
-      font-size: 24px;
-      font-weight: bold;
-      display: none;
-    }
+    .stage-header{position:relative;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;z-index:9}
+    .hud{display:flex;gap:12px;align-items:center}
+    .score{font-weight:800}
+    .small{font-size:13px;color:var(--muted)}
 
-    /* --- Portada del juego --- */
-    #portada {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: linear-gradient(180deg,#e3f2fd,#bbdefb);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      text-align: center;
-    }
+    .patient-area{display:flex;gap:14px;padding:12px;position:relative;z-index:9}
+    .patient-card{width:360px;background:linear-gradient(180deg,rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,0.03)}
 
-    #portada h1 {
-      font-size: 2.5rem;
-      color: #0d47a1;
-      margin-bottom: 15px;
-    }
+    .avatar-wrap{width:100%;height:260px;border-radius:8px;overflow:hidden;position:relative;background:#02121a;display:flex;align-items:center;justify-content:center}
+    .avatar-img{width:100%;height:100%;object-fit:cover;display:block;transform-origin:center center;transition:transform .5s ease,filter .4s ease}
+    .avatar-gloss{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)}
 
-    #portada h3 {
-      color: #1565c0;
-      margin-bottom: 10px;
-    }
+    .vitals{margin-top:10px}
+    .bar{height:18px;background:rgba(255,255,255,0.04);border-radius:999px;overflow:hidden}
+    .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--good),#60a5fa);width:100%;transition:width .5s ease}
+    .stat-row{display:flex;justify-content:space-between;margin-top:8px;color:var(--muted);font-size:13px}
 
-    #portada ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      color: #1e88e5;
-      font-size: 1.2rem;
-      line-height: 1.8;
-    }
+    .stage-canvas{flex:1;position:relative;border-radius:8px;margin:12px;padding:18px;overflow:hidden;display:flex;flex-direction:column;z-index:6}
+    .spawn-item{position:absolute;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);backdrop-filter:blur(4px);cursor:pointer;border:1px solid rgba(255,255,255,0.03);font-weight:700;user-select:none;transition:transform .12s ease;z-index:8}
+    .spawn-item.medicine{background:linear-gradient(90deg,#ecfccb,#bbf7d0);color:#07211a}
+    .spawn-item.clock{background:linear-gradient(90deg,#e0f2fe,#bae6fd);color:#052032}
+    .spawn-item.virus{background:linear-gradient(90deg,#fee2e2,#fecaca);color:#2b0a0a}
 
-    #btnJugar {
-      margin-top: 30px;
-      background: #0d47a1;
-      color: white;
-      border: none;
-      padding: 12px 35px;
-      border-radius: 25px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-      transition: background 0.3s ease;
-    }
+    .qmodal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,#071022,#07182a);padding:18px;border-radius:12px;width:720px;max-width:96%;box-shadow:0 30px 80px rgba(2,6,23,0.8);z-index:10002}
+    .qmodal.hidden{display:none}
+    .qtext{font-size:18px;margin-bottom:12px}
+    .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .optbtn{padding:12px;border-radius:10px;background:var(--glass);cursor:pointer;border:1px solid rgba(255,255,255,0.03);font-weight:700}
+    .optbtn.disabled{opacity:.45;pointer-events:none}
 
-    #btnJugar:hover {
-      background: #1565c0;
-    }
+    aside.controls{position:sticky;top:18px;height:fit-content}
+    .controls h3{margin:6px 0 8px}
+    .btn{display:inline-block;padding:10px 12px;border-radius:10px;background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:white;font-weight:700;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+    .level-list{display:flex;flex-direction:column;gap:8px}
+
+    .achievements{margin-top:12px}
+    .medal{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border:1px solid rgba(255,255,255,0.03)}
+    .medal.locked{opacity:.45}
+
+    .toast{position:fixed;right:18px;bottom:18px;background:linear-gradient(90deg,#0b1220,#07202f);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 12px 30px rgba(0,0,0,0.6);z-index:20000;display:flex;align-items:center;gap:10px}
+
+    .minigame{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,#071022,#061426);padding:18px;border-radius:12px;width:640px;max-width:96%;box-shadow:0 30px 80px rgba(2,6,23,0.8);z-index:12000}
+    .hidden{display:none}
+
+    /* Start screen */
+    .start-screen{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,12,0.9),rgba(6,10,16,0.95));z-index:30000;display:flex;align-items:center;justify-content:center;padding:20px}
+    .start-card{width:880px;max-width:96%;background:linear-gradient(180deg,#06202a,#05303a);border-radius:14px;padding:18px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 30px 80px rgba(2,6,23,0.8);color:#eaf3fb}
+    .start-grid{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:center}
+    .start-list{font-size:15px;color:var(--muted);line-height:1.6;padding-left:8px}
+    .start-hero{display:flex;flex-direction:column;gap:12px}
+    .start-hero h2{margin:0;font-size:26px}
+    .start-hero p{margin:0;color:var(--muted)}
+    .start-actions{display:flex;gap:8px;align-items:center}
+
+    @media(max-width:980px){.game-wrap{grid-template-columns:1fr}.patient-card{width:100%}.start-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
+  <div class="app">
+    <header>
+      <div class="logo">ME</div>
+      <div>
+        <h1>Juego de Médicos</h1>
+        <p class="lead">Modo clásico y Verdadero/Falso, minijuegos y eventos sorpresa.</p>
+      </div>
+    </header>
 
-  <!-- 🩺 PORTADA -->
-  <div id="portada">
-    <h1>🩺 Juego de Médicos</h1>
-    <h3>Participantes:</h3>
-    <ul>
-      <li>1. Valery Jiménez Villalobos</li>
-      <li>2. Natasha Artavia Garbanzo</li>
-      <li>3. Valentina Ortiz Rojas</li>
-      <li>4. Paola Camacho Rodríguez</li>
-      <li>5. Luis Diego Ulate Rivera</li>
-      <li>6. Juan Carlos Varela Pruaño</li>
-      <li>7. Iam Alfaro Montero</li>
-    </ul>
-    <button id="btnJugar">Comenzar</button>
+    <div class="game-wrap">
+      <section class="panel stage" id="stage">
+        <!-- Hospital background images -->
+        <div id="bgDay" class="bg-layer" style="background-image:url('https://images.unsplash.com/photo-1586773860414-3ef3a7b1b4d7?w=1600&q=70&auto=format&fit=crop');opacity:1"></div>
+        <div id="bgNight" class="bg-layer" style="background-image:url('https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=1600&q=70&auto=format&fit=crop');opacity:0"></div>
+        <div class="bg-overlay"></div>
+
+        <div class="stage-header">
+          <div class="hud">
+            <div class="score">Puntos: <span id="score">0</span></div>
+            <div class="small">Nivel: <strong id="levelName">Anatomía</strong></div>
+            <div class="small">Récord: <strong id="best">0</strong></div>
+          </div>
+          <div>
+            <button class="btn" id="startBtn">Iniciar Partida</button>
+            <button class="btn ghost" id="pauseBtn">Pausar</button>
+          </div>
+        </div>
+
+        <div class="patient-area">
+          <div class="patient-card">
+            <div class="avatar-wrap">
+              <img id="avatarImg" class="avatar-img" src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=1200&q=80&auto=format&fit=crop" alt="Paciente">
+              <div class="avatar-gloss"></div>
+            </div>
+
+            <div class="vitals">
+              <div class="small">Vida del paciente</div>
+              <div class="bar" style="margin-top:8px"><i id="patientBar"></i></div>
+              <div class="stat-row"><div class="small">Tiempo: <span id="roundTimer">--</span></div><div class="small">Errores: <span id="errors">0</span></div></div>
+            </div>
+
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;justify-content:space-between">
+              <div>
+                <div class="small">Burbujas: <span id="hintsCount">0</span></div>
+                <div class="small">Racha: <span id="combo">0</span></div>
+              </div>
+              <div>
+                <button class="btn ghost" id="shiftBtn">Cambiar turno</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="stage-canvas" id="stageCanvas">
+            <div id="floatingHints" style="position:absolute;left:12px;top:10px;color:var(--muted);font-size:13px;z-index:9">Burbujas: <span id="hintsCount2">0</span></div>
+            <div class="doors" id="doors" aria-hidden="true" style="z-index:9">
+              <div class="door" id="doorLeft"><div class="label">Sala A</div></div>
+              <div class="door" id="doorRight"><div class="label">Recepción</div></div>
+            </div>
+
+            <!-- Example "player" (doctor) controlled with arrow keys -->
+            <div id="player" style="position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:12px;background:linear-gradient(180deg,#fff,#e6f7ff);display:flex;align-items:center;justify-content:center;font-weight:800;color:#01303a;z-index:7">
+              👨‍⚕️
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <aside class="panel controls">
+        <h3>Modos & Niveles</h3>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn" id="modeClassic">Modo Clásico</button>
+          <button class="btn ghost" id="modeTF">Verdadero/Falso</button>
+        </div>
+
+        <div class="level-list">
+          <button class="btn ghost levelBtn" data-level="Anatomía">Anatomía</button>
+          <button class="btn ghost levelBtn" data-level="Cardiología">Cardiología</button>
+          <button class="btn ghost levelBtn" data-level="Neurología">Neurología</button>
+          <button class="btn ghost levelBtn" data-level="Urgencias">Urgencias</button>
+          <button class="btn ghost levelBtn" data-level="Pediatría">Pediatría</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small">Tiempo por pregunta (s)</div>
+          <input id="timePerQ" type="range" min="6" max="40" value="18" style="width:100%">
+          <div style="display:flex;justify-content:space-between;color:var(--muted);font-size:13px"><span>6s</span><span id="timeLabel">18s</span><span>40s</span></div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn" id="saveBtn">Guardar</button>
+          <button class="btn ghost" id="loadBtn">Cargar</button>
+        </div>
+
+        <div style="margin-top:12px;color:var(--muted);font-size:13px">
+          Consejo: recoge medicinas y burbujas antes de que desaparezcan — pueden salvar al paciente.
+        </div>
+
+        <div class="achievements">
+          <h4 style="margin-top:12px">Logros & Medallas</h4>
+          <div id="medalList"></div>
+          <div style="margin-top:8px">
+            <button class="btn" id="showStats">Estadísticas</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer style="margin-top:14px;color:var(--muted);font-size:13px">Guarda este archivo como <code>index.html</code> en la raíz del repositorio.</footer>
   </div>
 
-  <!-- 🧠 JUEGO ORIGINAL -->
-  <canvas id="gameCanvas" width="800" height="500"></canvas>
-  <div id="hud">Nivel: <span id="nivel">1</span> | Puntos: <span id="puntos">0</span></div>
-  <div id="mensaje"></div>
+  <!-- Start Screen -->
+  <div id="startScreen" class="start-screen">
+    <div class="start-card">
+      <div class="start-grid">
+        <div class="start-hero">
+          <h2>Juego de Médicos</h2>
+          <p>Equipo:</p>
+          <div class="start-list">
+            1. Valery Jiménez Villalobos<br>
+            2. Natasha Artavia Garbanzo<br>
+            3. Valentina Ortiz Rojas<br>
+            4. Paola Camacho Rodríguez<br>
+            5. Luis Diego Ulate Rivera<br>
+            6. Juan Carlos Varela Pruaño<br>
+            7. Iam Alfaro Montero<br>
+          </div>
+
+          <div class="start-actions">
+            <button class="btn" id="startFullBtn">Iniciar</button>
+            <button class="btn ghost" id="startHelpBtn">Instrucciones</button>
+          </div>
+        </div>
+
+        <div style="padding:8px;color:var(--muted)">
+          <h3 style="margin-top:0">Bienvenido al hospital</h3>
+          <p style="margin:0 0 8px">Eres el equipo médico encargado de salvar pacientes. Recolecta medicinas, responde preguntas correctamente y participa en minijuegos para restaurar vida.</p>
+          <ul style="margin:0 0 8px 18px;color:var(--muted)">
+            <li>Usa las flechas para mover al médico</li>
+            <li>Haz clic en medicinas/elementos para recogerlos</li>
+            <li>Responde preguntas correctamente para restaurar vida</li>
+          </ul>
+          <div style="font-size:12px;color:var(--muted)">Presiona Iniciar para comenzar la partida inmediatamente.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Question modal -->
+  <div id="qmodal" class="qmodal hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong id="qmodeLabel">Pregunta</strong>
+      <div class="small">Turno: <span id="activeShift">Día</span></div>
+    </div>
+    <div class="qtext" id="qtext">Pregunta</div>
+    <div class="opts" id="opts"></div>
+    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+      <div class="small">Pista: <span id="qhint" style="color:var(--muted)">---</span></div>
+      <div>
+        <button class="btn ghost" id="useHint">Usar pista (-2 pts)</button>
+        <button class="btn" id="submitClose">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- minigames (simple) -->
+  <div id="minigameRCP" class="minigame hidden">
+    <h3>RCP — Presiona ESPACIO al ritmo</h3>
+    <div style="margin-top:8px;color:var(--muted)">Sigue el pulso. Precisión alta restaura vida.</div>
+    <div style="margin-top:12px" id="rcpBar">Pulsa: <span id="rcpCount">0</span></div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px"><button class="btn ghost" id="rcpClose">Cerrar</button></div>
+  </div>
+
+  <div id="minigameDrag" class="minigame hidden">
+    <h3>Diagnóstico rápido</h3>
+    <div style="margin-top:8px;color:var(--muted)">Arrastra el síntoma al diagnóstico correcto.</div>
+    <div class="mini-row" id="dragRow" style="margin-top:10px"></div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px"><button class="btn ghost" id="dragClose">Cerrar</button></div>
+  </div>
+
+  <div id="minigameSeq" class="minigame hidden">
+    <h3>Cirugía express — Ordena los pasos</h3>
+    <div style="margin-top:8px;color:var(--muted)">Selecciona los pasos en el orden correcto.</div>
+    <div class="mini-row" id="seqRow" style="margin-top:10px"></div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px"><button class="btn ghost" id="seqClose">Cerrar</button></div>
+  </div>
 
   <script>
-    // --- VARIABLES PRINCIPALES ---
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const mensaje = document.getElementById("mensaje");
-    const puntosEl = document.getElementById("puntos");
-    const nivelEl = document.getElementById("nivel");
+    // ---------------- Assets & data ----------------
+    const BG = {
+      day: document.getElementById('bgDay'),
+      night: document.getElementById('bgNight')
+    };
+    const AV = {
+      happy:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&q=70&auto=format&fit=crop',
+      neutral:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=1200&q=70&auto=format&fit=crop',
+      critical:'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=1200&q=70&auto=format&fit=crop'
+    };
 
-    let jugador = { x: 380, y: 430, w: 40, h: 40, color: "#0d47a1" };
-    let objetos = [];
-    let puntos = 0;
-    let nivel = 1;
-    let jugando = false;
+    // Questions (expanded) - using your questions
+    const LEVELS = {
+      'Anatomía': [
+        {q:'¿Cuál es el hueso más largo del cuerpo humano?', a:['Húmero','Fémur','Tibia','Radio'], r:1, hint:'Se encuentra en la pierna'},
+        {q:'¿Dónde se producen la mayor parte de las células sanguíneas?', a:['Hígado','Médula ósea','Bazo','Páncreas'], r:1, hint:'Órgano productor de células sanguíneas'},
+        {q:'¿Cuál es la unidad funcional del riñón?', a:['Neurona','Nefrona','Alvéolo','Osteona'], r:1, hint:'Filtra y reabsorbe en el riñón'},
+        {q:'¿Cuál es el nombre del hueso de la mejilla?', a:['Maxilar','Mandíbula','Cigomático','Frontal'], r:2, hint:'Es el cigomático'},
+        {q:'¿Dónde están los alveolos?', a:['Pulmones','Hígado','Riñón','Corazón'], r:0, hint:'Intercambio de gases'},
+        {q:'¿Qué estructura conecta huesos entre sí?', a:['Tendón','Ligamento','Músculo','Articulación'], r:1, hint:'Estabiliza la articulación'}
+      ],
+      'Cardiología': [
+        {q:'¿Qué válvula separa aurícula izquierda y ventrículo izquierdo?', a:['Tricúspide','Mitral','Pulmonar','Aórtica'], r:1, hint:'También llamada bicúspide'},
+        {q:'¿Qué arteria irriga el miocardio?', a:['Coronaria','Femoral','Cefálica','Carótida'], r:0, hint:'Su bloqueo puede causar infarto'},
+        {q:'¿Frecuencia cardiaca normal en adulto en reposo (aprox.)?', a:['30-50','60-100','110-140','140-180'], r:1, hint:'Entre 60 y 100 lpm'},
+        {q:'¿Cómo se llama el latido irregular del corazón?', a:['Taquicardia','Bradicardia','Arritmia','Isquemia'], r:2, hint:'Es una arritmia'},
+        {q:'¿Qué fármaco se usa en paro para reversión inicial?', a:['Aspirina','Adrenalina','Atropina','Amoxicilina'], r:1, hint:'Administración intramuscular o IV'},
+        {q:'¿Qué onda del ECG representa la despolarización ventricular?', a:['P','QRS','T','U'], r:1, hint:'QRS es la despolarización ventricular'}
+      ],
+      'Neurología': [
+        {q:'¿Qué área cerebral es responsable del lenguaje en la mayoría de personas?', a:['Área de Broca','Cerebelo','Hipotálamo','Núcleo caudado'], r:0, hint:'Relacionada con la producción de habla'},
+        {q:'¿Cuál es el principal neurotransmisor excitador?', a:['GABA','Glutamato','Dopamina','Serotonina'], r:1, hint:'Abundante en sinapsis excitadoras'},
+        {q:'¿Qué nervio controla los músculos de expresión facial?', a:['Nervio facial (VII)','Trigémino (V)','Óptico (II)','Glosofaríngeo (IX)'], r:0, hint:'Es el VII par craneal'},
+        {q:'¿Qué estructura se encarga de la coordinación motora fina?', a:['Cerebelo','Tálamo','Hipocampo','Amígdala'], r:0, hint:'El cerebelo coordina movimientos'},
+        {q:'¿Qué es un accidente cerebrovascular (ACV)?', a:['Infección','Hemorragia o isquemia cerebral','Paro cardiaco','Fractura craneal'], r:1, hint:'Interrupción del flujo sanguíneo cerebral'},
+        {q:'¿Cuál nervio transmite sensación de la cara?', a:['Vago (X)','Trigémino (V)','Facial (VII)','Olfatorio (I)'], r:1, hint:'Es el V par craneal'}
+      ],
+      'Urgencias': [
+        {q:'En paro cardiaco, la maniobra inmediata es?', a:['RCP','Aspirar vías','Administrar antibiótico','Elevar piernas'], r:0, hint:'Compresiones torácicas y ventilaciones'},
+        {q:'Signo de perfusión deficiente en choque?', a:['Pulsos fuertes','Piel fría y pegajosa','Mucha sed','Pupilas pequeñas'], r:1, hint:'Signos de mala perfusión periférica'},
+        {q:'Tratamiento inicial para anafilaxia grave?', a:['Antihistamínicos','Adrenalina IM','Antibiótico','Aspirina'], r:1, hint:'Inyección intramuscular de emergencia'},
+        {q:'¿Qué hacer ante una obstrucción de vías aéreas completa?', a:['Golpes en la espalda y maniobra de Heimlich','Administrar agua','Elevar piernas','Colocar mascarilla'], r:0, hint:'Heimlich en adultos conscientes'},
+        {q:'¿Cuál es la prioridad en triage?', a:['Pacientes menos graves','Pacientes con riesgo vital','Pacientes con dolor','Pacientes con fiebre'], r:1, hint:'Priorizar riesgo vital'},
+        {q:'¿Qué signo indica hemorragia interna masiva?', a:['Hipertermia','Hipotensión y taquicardia','Piel rosada','Ojos llorosos'], r:1, hint:'Shock hipovolémico'}
+      ],
+      'Pediatría': [
+        {q:'¿Qué vacuna previene el tétanos?', a:['BCG','Triple viral','DTP','Hepatitis B'], r:2, hint:'Toxoide tetánico en DTP'},
+        {q:'¿Cuál es el signo de deshidratación severa en niños?', a:['Lagrimeo','Fontanela hundida','Apetito aumentado','Orina frecuente'], r:1, hint:'Fontanela hundida en lactantes'},
+        {q:'¿A qué edad comienzan a aparecer dientes primarios?', a:['0-1 mes','6-12 meses','2-3 años','4-5 años'], r:1, hint:'Entre 6 y 12 meses'},
+        {q:'¿Qué es la bronquiolitis?', a:['Infección viral de vías bajas','Enfermedad renal','Problema dermatológico','Intoxicación'], r:0, hint:'Afecta a lactantes y niños pequeños'},
+        {q:'¿Qué líquido es preferible en rehidratación oral?', a:['Agua sola','Solución de rehidratación oral','Leche','Bebidas azucaradas'], r:1, hint:'SRO con electrolitos'},
+        {q:'¿Cuál es la frecuencia respiratoria normal en lactante?', a:['10-20','30-60','60-100','5-10'], r:1, hint:'Mayor que en adultos'}
+      ]
+    };
 
-    // --- FUNCIONES DEL JUEGO ---
-    function iniciarJuego() {
-      jugando = true;
-      puntos = 0;
-      nivel = 1;
-      objetos = [];
-      mensaje.style.display = "none";
-      bucleJuego();
+    const TF = [
+      {q:'El fémur es el hueso más largo del cuerpo humano.', ans:true},
+      {q:'La medula ósea no produce células sanguíneas.', ans:false},
+      {q:'La adrenalina se usa en anafilaxia.', ans:true},
+      {q:'La bradicardia es un ritmo cardíaco acelerado.', ans:false},
+      {q:'El cerebelo regula la coordinación motora.', ans:true},
+      {q:'La penicilina es un antiviral.', ans:false},
+      {q:'Los alvéolos están en los pulmones.', ans:true},
+      {q:'La hipotensión es un signo de buen estado circulatorio.', ans:false}
+    ];
+
+    // ---------------- State ----------------
+    let mode = 'classic'; // 'classic' | 'tf'
+    let currentLevel = 'Anatomía';
+    let score = 0; let best = Number(localStorage.getItem('me_best')||0);
+    let patientHP = 100; const maxHP = 100;
+    let qTimer = null; let spawnInterval = null; let patientDrainInterval = null;
+    let activeQuestion = null; let playing = false; let hintsAvailable = 0; let errors = 0;
+    let combo = 0; let questionsAsked = 0;
+
+    const ACHS = [
+      {id:'first_save', name:'Primer paciente salvado', desc:'Salva tu primer paciente', icon:'🏅', unlocked:false},
+      {id:'rck_combo', name:'Racha 5', desc:'5 respuestas correctas seguidas', icon:'🔥', unlocked:false},
+      {id:'rcp_master', name:'Maestro RCP', desc:'Completar 3 RCP exitosas', icon:'🫀', unlocked:false}
+    ];
+
+    // ---------------- DOM refs ----------------
+    const scoreEl = document.getElementById('score'); const bestEl = document.getElementById('best');
+    const patientBar = document.getElementById('patientBar'); const avatarImg = document.getElementById('avatarImg');
+    const stageCanvas = document.getElementById('stageCanvas'); const levelName = document.getElementById('levelName');
+    const qmodal = document.getElementById('qmodal'); const qtext = document.getElementById('qtext'); const opts = document.getElementById('opts');
+    const qhint = document.getElementById('qhint'); const hintsCount = document.getElementById('hintsCount'); const hintsCount2 = document.getElementById('hintsCount2');
+    const roundTimerEl = document.getElementById('roundTimer'); const errorsEl = document.getElementById('errors'); const comboEl = document.getElementById('combo');
+    const bgDayEl = document.getElementById('bgDay'); const bgNightEl = document.getElementById('bgNight'); const activeShiftEl = document.getElementById('activeShift');
+
+    const minigameRCP = document.getElementById('minigameRCP'); const rcpCountEl = document.getElementById('rcpCount');
+    const minigameDrag = document.getElementById('minigameDrag'); const dragRow = document.getElementById('dragRow');
+    const minigameSeq = document.getElementById('minigameSeq'); const seqRow = document.getElementById('seqRow');
+
+    const startScreen = document.getElementById('startScreen');
+    const startFullBtn = document.getElementById('startFullBtn');
+    const startBtn = document.getElementById('startBtn');
+    const startHelpBtn = document.getElementById('startHelpBtn');
+
+    const playerEl = document.getElementById('player');
+
+    // -------------- utilities --------------
+    function beep(freq=440,dur=0.08,vol=0.02){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(); const g=ctx.createGain(); o.type='sine'; o.frequency.value=freq; g.gain.value=vol; o.connect(g); g.connect(ctx.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur); setTimeout(()=>{ o.stop(); ctx.close(); }, dur*1000); }catch(e){} }
+    function uiUpdate(){ scoreEl.textContent = score; bestEl.textContent = best; patientBar.style.width = patientHP + '%'; levelName.textContent = currentLevel; hintsCount.textContent = hintsAvailable; hintsCount2.textContent = hintsAvailable; errorsEl.textContent = errors; comboEl.textContent = combo; }
+    function showToast(text, ms=2400){ const t=document.createElement('div'); t.className='toast'; t.textContent=text; document.body.appendChild(t); setTimeout(()=>t.style.opacity=1,20); setTimeout(()=>{ t.style.opacity=0; setTimeout(()=>t.remove(),400); },ms); }
+    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } }
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    // -------------- background/shift --------------
+    function applyShift(s){ localStorage.setItem('me_shift', s); activeShiftEl.textContent = s==='night' ? 'Noche' : 'Día'; if(s==='night'){ bgDayEl.style.opacity=0; bgNightEl.style.opacity=1; } else { bgDayEl.style.opacity=1; bgNightEl.style.opacity=0; } }
+    function ensureShift(){ const s = localStorage.getItem('me_shift') || 'day'; applyShift(s); }
+
+    // -------------- spawn items --------------
+    function spawnRandomItem(){ if(!playing) return;
+      const types=['medicine','clock','virus'];
+      const t = types[Math.floor(Math.random()*types.length)];
+      const el=document.createElement('div');
+      el.className='spawn-item '+t;
+      el.textContent = t==='medicine'? '💊 Medicina' : (t==='clock'?'⏱ Tiempo':'☣️ Virus');
+      const padding = 120;
+      const x = Math.random() * Math.max(20, stageCanvas.clientWidth - padding);
+      const y = 80 + Math.random() * Math.max(20, stageCanvas.clientHeight - 260);
+      el.style.left = x+'px';
+      el.style.top = y+'px';
+      stageCanvas.appendChild(el);
+
+      // floating motion
+      let vy = (Math.random()*0.6+0.2) * (Math.random()>0.5?1:-1);
+      const floatInt = setInterval(()=>{ if(!el.parentElement){ clearInterval(floatInt); return; } const curY=parseFloat(el.style.top); el.style.top=(curY+vy)+'px'; if(curY<20||curY>stageCanvas.clientHeight-60) vy*=-1; },180);
+
+      const life = 5000 + Math.random()*9000;
+      const timeout = setTimeout(()=>{ if(el.parentElement) el.remove(); clearInterval(floatInt); }, life);
+
+      el.addEventListener('click', ()=>{ if(!playing) return; clearTimeout(timeout); clearInterval(floatInt); collectItem(t); el.remove(); });
     }
+    function collectItem(type){
+      if(type==='medicine'){ patientHP = Math.min(maxHP, patientHP+25); score += 8; beep(880,0.08); }
+      else if(type==='clock'){ score += 6; beep(720,0.08); if(qTimer){ clearInterval(qTimer); startQuestionTimer((Number(document.getElementById('timePerQ').value) || 18) + 6); } }
+      else if(type==='virus'){ // harmful - reduce hp
+        patientHP = Math.max(0, patientHP - 12); score = Math.max(0, score - 4); beep(200,0.06);
+      }
+      else if(type==='hint'){ hintsAvailable +=1; score +=4; beep(960,0.08); }
+      uiUpdate();
+    }
+    function clearStageItems(){ stageCanvas.querySelectorAll('.spawn-item').forEach(n=>n.remove()); }
 
-    function crearObjeto() {
-      const tipos = ["💊", "🧠", "❤️", "💉", "🩹"];
-      const tipo = tipos[Math.floor(Math.random() * tipos.length)];
-      objetos.push({
-        x: Math.random() * (canvas.width - 40),
-        y: -40,
-        tipo: tipo,
-        velocidad: 2 + nivel * 0.5
+    // -------------- patient drain --------------
+    function levelSpeed(lv){ switch(lv){ case 'Anatomía': return 0.6; case 'Cardiología': return 0.9; case 'Neurología': return 1.4; case 'Urgencias': return 2.2; case 'Pediatría': return 0.7; default: return 1; } }
+    function startPatientDrain(){ if(patientDrainInterval) clearInterval(patientDrainInterval); const speed = levelSpeed(currentLevel); patientDrainInterval = setInterval(()=>{ if(!playing) return; patientHP = Math.max(0, patientHP - speed); const g = clamp(1 - patientHP/120, 0, 1); avatarImg.style.filter = `grayscale(${g}) contrast(${1 - (100-patientHP)/600})`; avatarImg.style.transform = `scale(${1 + (100-patientHP)/2200})`; uiUpdate(); if(patientHP <= 0){ endRound(false); } }, 1200); }
+
+    // -------------- questions classic --------------
+    function nextClassicQuestion(){ if(!playing) return; if(activeQuestion) return; const pool = LEVELS[currentLevel]; const q = pool[Math.floor(Math.random()*pool.length)]; activeQuestion = JSON.parse(JSON.stringify(q)); showQuestionClassic(activeQuestion); }
+    function showQuestionClassic(q){
+      qmodal.classList.remove('hidden');
+      document.getElementById('qmodeLabel').textContent='Pregunta (Múltiple)';
+      document.getElementById('activeShift').textContent = (localStorage.getItem('me_shift')==='night'?'Noche':'Día');
+      qtext.textContent = q.q;
+      qhint.textContent = '---';
+      opts.innerHTML='';
+      const letters=['A','B','C','D'];
+      const arr = q.a.map((t,i)=>({t,i}));
+      shuffle(arr);
+      arr.forEach((o,idx)=>{
+        const b=document.createElement('div');
+        b.className='optbtn';
+        b.dataset.index = o.i;
+        b.innerHTML = `<strong>${letters[idx]})</strong> ${o.t}`;
+        b.addEventListener('click', ()=> chooseAnswer(b));
+        opts.appendChild(b);
       });
+      startQuestionTimer(Number(document.getElementById('timePerQ').value) || 18);
+    }
+    function chooseAnswer(btn){
+      if(!activeQuestion) return;
+      stopQuestionTimer();
+      const chosen = Number(btn.dataset.index);
+      const correct = chosen === activeQuestion.r;
+      Array.from(opts.children).forEach(o=>o.classList.add('disabled'));
+      if(correct){
+        btn.style.outline='4px solid rgba(16,185,129,0.12)';
+        combo++;
+        score += 15 * Math.max(1, Math.min(3, combo));
+        patientHP = Math.min(maxHP, patientHP+18);
+        beep(880,0.08);
+        avatarImg.src = AV.happy;
+      } else {
+        btn.style.outline='4px solid rgba(239,68,68,0.12)';
+        errors++;
+        patientHP = Math.max(0, patientHP - 14);
+        score = Math.max(0, score - 6);
+        combo = 0;
+        beep(200,0.12);
+        avatarImg.src = AV.critical;
+      }
+      questionsAsked++; uiUpdate();
+      setTimeout(()=>{ avatarImg.src = AV.neutral; closeQuestion(); if(patientHP<=0) endRound(false); else decideNextAfterQuestion(); },900);
     }
 
-    function dibujarJugador() {
-      ctx.fillStyle = jugador.color;
-      ctx.fillRect(jugador.x, jugador.y, jugador.w, jugador.h);
+    // -------------- True/False mode --------------
+    function startTFMode(){ if(!playing) return; if(activeQuestion) return; const q = TF[Math.floor(Math.random()*TF.length)]; activeQuestion = {tf:true,...q}; showTFQuestion(activeQuestion); }
+    function showTFQuestion(q){
+      qmodal.classList.remove('hidden');
+      document.getElementById('qmodeLabel').textContent='Verdadero / Falso';
+      document.getElementById('activeShift').textContent = (localStorage.getItem('me_shift')==='night'?'Noche':'Día');
+      qtext.textContent = q.q;
+      qhint.textContent = '---';
+      opts.innerHTML='';
+      ['Verdadero','Falso'].forEach((t,i)=>{
+        const b=document.createElement('div');
+        b.className='optbtn';
+        b.dataset.tf = (i===0).toString();
+        b.textContent = t;
+        b.addEventListener('click', ()=> chooseTF(b));
+        opts.appendChild(b);
+      });
+      startQuestionTimer(Math.max(8, Math.min(15, Number(document.getElementById('timePerQ').value) || 12)));
+    }
+    function chooseTF(btn){
+      if(!activeQuestion) return;
+      stopQuestionTimer();
+      const chosen = (btn.dataset.tf === 'true');
+      const correct = chosen === activeQuestion.ans;
+      Array.from(opts.children).forEach(o=>o.classList.add('disabled'));
+      if(correct){
+        combo++;
+        score += 12 * Math.max(1, Math.min(3, combo));
+        patientHP = Math.min(maxHP, patientHP+12);
+        beep(880,0.08);
+        avatarImg.src = AV.happy;
+      } else {
+        errors++;
+        patientHP = Math.max(0, patientHP - 12);
+        score = Math.max(0, score - 6);
+        combo = 0;
+        beep(200,0.12);
+        avatarImg.src = AV.critical;
+      }
+      questionsAsked++; uiUpdate();
+      setTimeout(()=>{ avatarImg.src = AV.neutral; closeQuestion(); if(patientHP<=0) endRound(false); else decideNextAfterQuestion(); },700);
     }
 
-    function dibujarObjetos() {
-      ctx.font = "30px Arial";
-      objetos.forEach(o => ctx.fillText(o.tipo, o.x, o.y));
+    function startQuestionTimer(seconds){
+      if(qTimer) clearInterval(qTimer);
+      let t=seconds;
+      roundTimerEl.textContent = t+'s';
+      qTimer = setInterval(()=>{
+        t--;
+        roundTimerEl.textContent = t+'s';
+        if(t<=4) roundTimerEl.style.color='orange';
+        if(t<=2) roundTimerEl.style.color='red';
+        if(t<=0){
+          clearInterval(qTimer); qTimer=null;
+          errors++;
+          patientHP = Math.max(0, patientHP - 14);
+          score = Math.max(0, score - 5);
+          combo = 0;
+          beep(220,0.12);
+          uiUpdate();
+          closeQuestion();
+          if(patientHP<=0) endRound(false); else setTimeout(()=> decideNextAfterQuestion(),800);
+        }
+      },1000);
+    }
+    function stopQuestionTimer(){ if(qTimer) clearInterval(qTimer); qTimer=null; roundTimerEl.textContent='--'; roundTimerEl.style.color='inherit'; }
+    function closeQuestion(){ qmodal.classList.add('hidden'); activeQuestion=null; stopQuestionTimer(); }
+
+    // -------------- post-question: events & minigames --------------
+    function decideNextAfterQuestion(){ uiUpdate();
+      // every 5 questions, 30% chance surprise
+      if(questionsAsked>0 && questionsAsked % 5 ===0){
+        if(Math.random()<0.3){ triggerSurprise(); return; }
+      }
+      // occasional minigame
+      if(Math.random()<0.16){ triggerRandomMinigame(); return; }
+      // continue questions
+      setTimeout(()=>{ if(mode==='classic') nextClassicQuestion(); else startTFMode(); },700);
     }
 
-    function moverObjetos() {
-      objetos.forEach(o => o.y += o.velocidad);
-      objetos = objetos.filter(o => o.y < canvas.height + 50);
+    function triggerSurprise(){
+      const events = ['blackout','expert','allergy','rush'];
+      const e = events[Math.floor(Math.random()*events.length)];
+      if(e==='blackout'){
+        const overlay = document.querySelector('.bg-overlay');
+        overlay.style.transition='background .2s ease';
+        overlay.style.background='linear-gradient(180deg,rgba(0,0,0,0.9),rgba(0,0,0,0.95))';
+        showToast('⚠ Apagón — luces reducidas 6s',3500);
+        setTimeout(()=>{ overlay.style.background='linear-gradient(180deg,rgba(6,10,16,0.36),rgba(2,6,12,0.5))'; },6000);
+      } else if(e==='expert'){
+        hintsAvailable +=1; uiUpdate(); showToast('👨‍⚕ Médico experto llega — Pista gratis añadida',3000);
+      } else if(e==='allergy'){
+        patientHP = Math.max(0, patientHP - 10); uiUpdate(); showToast('⚠ Reacción alérgica — -10 HP',3000);
+      } else if(e==='rush'){
+        showToast('⏱ Nueva emergencia — tiempo reducido en la próxima pregunta',3000);
+        const input = document.getElementById('timePerQ'); input.dataset.tempReduce = '6';
+        setTimeout(()=>{ delete input.dataset.tempReduce; },6000);
+      }
     }
 
-    function detectarColisiones() {
-      objetos.forEach((o, i) => {
-        if (
-          o.x < jugador.x + jugador.w &&
-          o.x + 30 > jugador.x &&
-          o.y < jugador.y + jugador.h &&
-          o.y + 30 > jugador.y
-        ) {
-          puntos += 10;
-          objetos.splice(i, 1);
-          puntosEl.textContent = puntos;
-          if (puntos % 100 === 0) {
-            nivel++;
-            nivelEl.textContent = nivel;
-            mostrarMensaje("¡Nivel superado!");
-          }
+    // -------------- minigames --------------
+    let rcpActive=false; let rcpCount=0; let rcpTarget=8;
+    function triggerRCP(){ rcpActive=true; rcpCount=0; rcpTarget = 6 + Math.floor(Math.random()*5); rcpCountEl.textContent='0/'+rcpTarget; minigameRCP.classList.remove('hidden'); showToast('Minijuego: RCP — ¡Presiona ESPACIO!',2500); }
+    function stopRCP(success){ rcpActive=false; minigameRCP.classList.add('hidden'); if(success){ patientHP = Math.min(maxHP, patientHP + 20); score += 20; showToast('✅ RCP exitosa — +20 HP',2200); } else { patientHP = Math.max(0, patientHP - 8); showToast('❌ RCP incompleta — -8 HP',2200); } uiUpdate(); }
+
+    function triggerDrag(){
+      minigameDrag.classList.remove('hidden'); dragRow.innerHTML='';
+      const pairs = [ ['Fiebre','Infección'], ['Dolor torácico','Infarto'], ['Hemorragia','Trauma'], ['Dificultad respiratoria','Asma'] ];
+      shuffle(pairs);
+      const left = pairs.map(p=>p[0]); const right = pairs.map(p=>p[1]);
+      for(const s of left){ const d=document.createElement('div'); d.className='drag-item'; d.draggable=true; d.style.margin='6px'; d.style.padding='8px'; d.style.borderRadius='6px'; d.style.background='rgba(255,255,255,0.03)'; d.textContent=s; d.addEventListener('dragstart',(ev)=>{ ev.dataTransfer.setData('text/plain',s); }); dragRow.appendChild(d); }
+      const dropZone = document.createElement('div'); dropZone.style.display='flex'; dropZone.style.gap='8px'; dropZone.style.marginLeft='10px';
+      right.forEach(r=>{ const z=document.createElement('div'); z.className='drag-item'; z.style.minWidth='120px'; z.style.margin='6px'; z.style.padding='8px'; z.style.borderRadius='6px'; z.style.background='rgba(255,255,255,0.03)'; z.textContent=r; z.addEventListener('dragover',(ev)=>ev.preventDefault()); z.addEventListener('drop',(ev)=>{ const s = ev.dataTransfer.getData('text/plain'); const correct = pairs.some(p=>p[0]===s && p[1]===r); if(correct){ score += 10; showToast('✅ Diagnóstico correcto +10 pts',2000); minigameDrag.classList.add('hidden'); uiUpdate(); } else { patientHP = Math.max(0, patientHP - 6); showToast('❌ Incorrecto -6 HP',2000); minigameDrag.classList.add('hidden'); uiUpdate(); } }); dropZone.appendChild(z); });
+      dragRow.appendChild(dropZone);
+    }
+
+    function triggerSeq(){ minigameSeq.classList.remove('hidden'); seqRow.innerHTML=''; const steps = ['Esterilizar','Incisión','Control sangrado','Suturar','Vendaje']; const shuffled = [...steps]; shuffle(shuffled);
+      for(const s of shuffled){ const b=document.createElement('div'); b.className='drag-item'; b.style.margin='6px'; b.style.padding='8px'; b.style.borderRadius='6px'; b.style.background='rgba(255,255,255,0.03)'; b.textContent=s; b.addEventListener('click', ()=>{ if(!b.dataset.selected){ b.dataset.selected='1'; b.style.opacity=.6; b.style.transform='translateY(-6px)'; const chosen = Array.from(document.querySelectorAll('#seqRow .drag-item.selected')); if(chosen.length===steps.length){ const picked = Array.from(document.querySelectorAll('#seqRow .drag-item')).filter(x=>x.dataset.selected).map(x=>x.textContent); const ok = picked.join('|') === steps.join('|'); if(ok){ score += 25; showToast('✅ Cirugía correcta +25 pts',2400); } else { patientHP = Math.max(0, patientHP - 12); showToast('❌ Orden incorrecto -12 HP',2400); } minigameSeq.classList.add('hidden'); uiUpdate(); } } }); seqRow.appendChild(b); }
+    }
+
+    function triggerRandomMinigame(){ const r = Math.random(); if(r<0.33) triggerRCP(); else if(r<0.66) triggerDrag(); else triggerSeq(); }
+
+    window.addEventListener('keydown',(e)=>{ if(rcpActive && e.code==='Space'){ e.preventDefault(); rcpCount++; rcpCountEl.textContent = rcpCount + '/' + rcpTarget; beep(900,0.04,0.02); if(rcpCount>=rcpTarget){ stopRCP(true); } } });
+
+    document.getElementById('rcpClose').addEventListener('click', ()=>{ if(rcpActive) stopRCP(rcpCount>=Math.floor(rcpTarget/1.6)); });
+    document.getElementById('dragClose').addEventListener('click', ()=>{ minigameDrag.classList.add('hidden'); });
+    document.getElementById('seqClose').addEventListener('click', ()=>{ minigameSeq.classList.add('hidden'); });
+
+    // -------------- achievements --------------
+    function loadAchievements(){ const raw = localStorage.getItem('me_achs'); if(raw){ const saved=JSON.parse(raw); ACHS.forEach(a=>{ a.unlocked = !!saved[a.id]; }); } renderMedals(); }
+    function saveAchievements(){ const obj={}; ACHS.forEach(a=>{ if(a.unlocked) obj[a.id]=true; }); localStorage.setItem('me_achs', JSON.stringify(obj)); }
+    function renderMedals(){ const el=document.getElementById('medalList'); el.innerHTML=''; ACHS.forEach(a=>{ const d=document.createElement('div'); d.className='medal' + (a.unlocked?'':' locked'); d.innerHTML = `<div style="font-size:20px">${a.icon}</div><div><strong>${a.name}</strong><div style="font-size:12px;color:var(--muted)">${a.desc}</div></div>`; el.appendChild(d); }); }
+    function unlock(id){ const a = ACHS.find(x=>x.id===id); if(!a || a.unlocked) return; a.unlocked = true; saveAchievements(); renderMedals(); showToast(`🏅 Nuevo logro: ${a.name}`,3000); }
+
+    // -------------- end round & controls --------------
+    function endRound(win){ stopAll(); clearStageItems(); playing=false; stopQuestionTimer(); activeQuestion=null; if(win){ score += 40; beep(1200,0.12); setTimeout(()=>alert('✅ Paciente salvado! — Puntaje: '+score),200); } else { beep(160,0.18); setTimeout(()=>alert('❌ El paciente no sobrevivió. Puntaje: '+score),200); } if(win) unlock('first_save'); uiUpdate(); saveBest(); }
+    function saveBest(){ if(score>best){ best = score; localStorage.setItem('me_best', best); } }
+    function resetGame(){ stopAll(); score=0; patientHP=maxHP; hintsAvailable=0; errors=0; activeQuestion=null; playing=false; combo=0; questionsAsked=0; uiUpdate(); }
+    function startGame(){ if(playing) return; playEntranceAnimation(()=>{ playing=true; score=0; patientHP=maxHP; hintsAvailable=0; errors=0; combo=0; questionsAsked=0; uiUpdate(); startSpawn(); startPatientDrain(); if(mode==='classic') nextClassicQuestion(); else startTFMode(); saveBest(); }); }
+    function stopAll(){ if(spawnInterval) clearInterval(spawnInterval); if(qTimer) clearInterval(qTimer); if(patientDrainInterval) clearInterval(patientDrainInterval); spawnInterval=null; qTimer=null; patientDrainInterval=null; }
+    function startSpawn(){ if(spawnInterval) clearInterval(spawnInterval); spawnInterval = setInterval(()=>{ spawnRandomItem(); }, 2300); }
+
+    const doors = document.getElementById('doors'); const doorLeft = document.getElementById('doorLeft'); const doorRight = document.getElementById('doorRight');
+    function playEntranceAnimation(callback){ doors.style.display='flex'; setTimeout(()=>{ doorLeft.classList.add('open-left'); doorRight.classList.add('open-right'); setTimeout(()=>{ beep(440,0.12,0.03); setTimeout(()=>{ beep(660,0.08,0.02); if(callback) callback(); },180); },300); },80); setTimeout(()=>{ doors.style.display='none'; },1600); }
+
+    // -------------- save/load & bindings --------------
+    document.getElementById('saveBtn').addEventListener('click', ()=>{ const data={mode,currentLevel,score,patientHP,errors,hintsAvailable}; localStorage.setItem('me_save', JSON.stringify(data)); alert('Progreso guardado.'); });
+    document.getElementById('loadBtn').addEventListener('click', ()=>{ const raw = localStorage.getItem('me_save'); if(!raw){ alert('No hay progreso guardado.'); return; } const d = JSON.parse(raw); mode=d.mode||mode; currentLevel=d.currentLevel||currentLevel; score=d.score||0; patientHP=d.patientHP||100; errors=d.errors||0; hintsAvailable=d.hintsAvailable||0; levelName.textContent=currentLevel; uiUpdate(); alert('Progreso cargado.'); });
+
+    startBtn.addEventListener('click', ()=> {
+      // If start pressed in stage header, show start screen or start immediately
+      if(startScreen && !startScreen.classList.contains('hidden')) {
+        startScreen.classList.add('hidden');
+        startGame();
+      } else {
+        startGame();
+      }
+    });
+
+    startFullBtn.addEventListener('click', ()=> {
+      startScreen.classList.add('hidden');
+      startGame();
+    });
+
+    startHelpBtn.addEventListener('click', ()=> {
+      alert('Instrucciones:\\n- Usa las flechas para mover al médico.\\n- Haz clic en las medicinas para recogerlas.\\n- Responde preguntas para ayudar al paciente.\\n- Evita virus (son dañinos).');
+    });
+
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{ if(!playing) return; playing=false; stopAll(); stopQuestionTimer(); alert('Juego pausado. Pulsa Iniciar para continuar.'); });
+    document.getElementById('submitClose').addEventListener('click', ()=> closeQuestion());
+    document.getElementById('timePerQ').addEventListener('input',(e)=>{ document.getElementById('timeLabel').textContent = e.target.value+'s'; });
+
+    document.getElementById('modeClassic').addEventListener('click', ()=>{ mode='classic'; document.getElementById('modeClassic').classList.remove('ghost'); document.getElementById('modeTF').classList.add('ghost'); showToast('Modo Clásico seleccionado',1200); });
+    document.getElementById('modeTF').addEventListener('click', ()=>{ mode='tf'; document.getElementById('modeClassic').classList.add('ghost'); document.getElementById('modeTF').classList.remove('ghost'); showToast('Modo Verdadero/Falso seleccionado',1200); });
+
+    document.querySelectorAll('.levelBtn').forEach(b=>{ b.addEventListener('click', ()=>{ currentLevel=b.dataset.level; levelName.textContent=currentLevel; resetGame(); uiUpdate(); showToast('Nivel: '+currentLevel,1200); }); });
+
+    // shift button toggles day/night
+    document.getElementById('shiftBtn').addEventListener('click', ()=> {
+      const cur = localStorage.getItem('me_shift') || 'day';
+      const next = cur === 'day' ? 'night' : 'day';
+      applyShift(next);
+      showToast('Turno: ' + (next==='night'?'Noche':'Día'), 1400);
+    });
+
+    document.getElementById('useHint').addEventListener('click', ()=>{ if(!activeQuestion) return; if(hintsAvailable<=0){ alert('No tienes burbujas de pista. Recoge burbujas rosas en la sala.'); return; } const optElems = Array.from(opts.children).filter(o=>!o.classList.contains('disabled')); const wrongs = optElems.filter(o=>o.dataset.index && Number(o.dataset.index)!==activeQuestion.r); if(wrongs.length){ const rEl = wrongs[Math.floor(Math.random()*wrongs.length)]; rEl.classList.add('disabled'); hintsAvailable -=1; score = Math.max(0, score-2); uiUpdate(); qhint.textContent = activeQuestion.hint || '...'; } });
+
+    document.getElementById('showStats').addEventListener('click', ()=>{ const stats = JSON.parse(localStorage.getItem('me_stats')||'{}'); alert('Estadísticas:\\n' + Object.entries(stats).map(([k,v])=>`${k}: ${v}`).join('\\n')); });
+
+    document.getElementById('rcpClose').addEventListener('click', ()=>{ if(rcpActive) stopRCP(rcpCount>=Math.floor(rcpTarget/1.6)); });
+
+    // Player movement (simple)
+    let player = { x: stageCanvas.clientWidth/2, y: stageCanvas.clientHeight*0.6, speed: 7 };
+    function placePlayer(){ const rect = stageCanvas.getBoundingClientRect(); playerEl.style.left = clamp(player.x, 20, rect.width-60) + 'px'; playerEl.style.top = clamp(player.y, 60, rect.height-80) + 'px'; }
+    window.addEventListener('resize', ()=> placePlayer());
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === 'ArrowLeft'){ player.x -= player.speed; placePlayer(); }
+      if(e.key === 'ArrowRight'){ player.x += player.speed; placePlayer(); }
+      if(e.key === 'ArrowUp'){ player.y -= player.speed; placePlayer(); }
+      if(e.key === 'ArrowDown'){ player.y += player.speed; placePlayer(); }
+    });
+
+    // Auto-collect if player overlaps spawn items (simple collision)
+    function checkPlayerCollisions(){
+      const pRect = playerEl.getBoundingClientRect();
+      stageCanvas.querySelectorAll('.spawn-item').forEach(el=>{
+        const r = el.getBoundingClientRect();
+        if(!(r.right < pRect.left || r.left > pRect.right || r.bottom < pRect.top || r.top > pRect.bottom)){
+          // simulate click collect
+          const cls = Array.from(el.classList).find(c=>['medicine','clock','virus','hint'].includes(c));
+          const type = cls || 'medicine';
+          collectItem(type);
+          el.remove();
         }
       });
     }
+    setInterval(()=>{ if(playing) checkPlayerCollisions(); },200);
 
-    function mostrarMensaje(texto) {
-      mensaje.textContent = texto;
-      mensaje.style.display = "block";
-      setTimeout(() => (mensaje.style.display = "none"), 1500);
-    }
+    // -------------- init --------------
+    function init(){ ensureShift(); loadAchievements(); avatarImg.src = AV.neutral; uiUpdate(); placePlayer(); }
+    init();
 
-    function bucleJuego() {
-      if (!jugando) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (Math.random() < 0.03) crearObjeto();
-      moverObjetos();
-      dibujarObjetos();
-      dibujarJugador();
-      detectarColisiones();
-      requestAnimationFrame(bucleJuego);
-    }
-
-    // --- MOVIMIENTO ---
-    document.addEventListener("keydown", e => {
-      if (e.key === "ArrowLeft" && jugador.x > 0) jugador.x -= 20;
-      if (e.key === "ArrowRight" && jugador.x < canvas.width - jugador.w)
-        jugador.x += 20;
-    });
-
-    // --- PORTADA ---
-    const portada = document.getElementById("portada");
-    const btnJugar = document.getElementById("btnJugar");
-
-    btnJugar.addEventListener("click", () => {
-      portada.style.transition = "opacity 1s ease";
-      portada.style.opacity = "0";
-      setTimeout(() => portada.remove(), 1000);
-      iniciarJuego();
-    });
   </script>
 </body>
 </html>
-
-
