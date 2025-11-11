@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🏥 Juego de Médicos</title>
+<style>
+  body {
+    margin: 0;
+    font-family: "Poppins", sans-serif;
+    background: url("e69d0340-8505-47c4-9f56-4e073358a92a.png") center/cover no-repeat fixed;
+    color: #333;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* PORTADA */
+  #inicio {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #007bff 0%, #00bcd4 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.4);
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+
+  #inicio.oculto {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  #inicio h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+  }
+
+  #inicio ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.8;
+  }
+
+  #inicio button {
+    margin-top: 25px;
+    font-size: 22px;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #007bff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  #inicio button:hover {
+    background: #007bff;
+    color: white;
+  }
+
+  /* CONTENEDOR DEL JUEGO */
+  #juego {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 20px;
+    padding: 30px 40px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    text-align: center;
+    display: none;
+    animation: fadeIn 0.6s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  h1 {
+    font-size: 36px;
+    color: #007bff;
+    margin-bottom: 10px;
+  }
+
+  #estado {
+    margin-bottom: 15px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  #pregunta {
+    font-size: 22px;
+    margin: 20px 0;
+  }
+
+  .opcion {
+    display: block;
+    margin: 10px auto;
+    padding: 10px;
+    width: 80%;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .opcion:hover {
+    background: #0056b3;
+  }
+
+  #comodin {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #ffb703;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  #comodin:hover {
+    background: #e09e00;
+  }
+
+  #fin {
+    display: none;
+    text-align: center;
+  }
+  #fin h2 {
+    font-size: 32px;
+    color: #dc3545;
+  }
+  #reiniciar {
+    padding: 12px 25px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+  }
+  #reiniciar:hover {
+    background: #0056b3;
+  }
+
+  #volver {
+    margin-top: 15px;
+    display: inline-block;
+    text-decoration: none;
+    background: #6c757d;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+  }
+  #volver:hover {
+    background: #5a6268;
+  }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div id="inicio">
+  <h1>🏥 Juego de Médicos</h1>
+  <ul>
+    <li>Valery Jiménez Villalobos</li>
+    <li>Natasha Artavia Garbanzo</li>
+    <li>Valentina Ortiz Rojas</li>
+    <li>Paola Camacho Rodríguez</li>
+    <li>Luis Diego Ulate Rivera</li>
+    <li>Juan Carlos Varela Pruaño</li>
+    <li>Iam Alfaro Montero</li>
+  </ul>
+  <button onclick="iniciarJuego()">Iniciar</button>
+</div>
+
+<!-- JUEGO -->
+<div id="juego">
+  <h1>🏥 Juego de Médicos</h1>
+  <div id="estado">
+    💖 Vidas: <span id="vidas">3</span> | 💊 Puntos: <span id="puntos">0</span> | 💡 Comodines: <span id="comodines">3</span>
+  </div>
+  
+  <div id="pregunta"></div>
+  <div id="opciones"></div>
+
+  <button id="comodin" onclick="usarComodin()">💡 Usar comodín</button>
+
+  <div id="fin">
+    <h2>💀 Fin del juego</h2>
+    <p>Puntos finales: <span id="puntosFinales"></span></p>
+    <button id="reiniciar" onclick="reiniciar()">🔄 Reiniciar</button><br>
+    <button id="volver" onclick="volverInicio()">🏠 Volver al inicio</button>
+  </div>
+</div>
+
+<script>
+const preguntas = [
+  { q: "¿Cuál es el órgano que bombea la sangre?", o: ["Pulmón", "Corazón", "Hígado"], c: 1 },
+  { q: "¿Cuántos pulmones tiene el cuerpo humano?", o: ["1", "2", "3"], c: 1 },
+  { q: "¿Qué vitamina se obtiene del sol?", o: ["A", "C", "D"], c: 2 },
+  { q: "¿Cuál es la temperatura corporal normal?", o: ["37°C", "40°C", "35°C"], c: 0 },
+  { q: "¿Qué parte del cuerpo controla el cerebro?", o: ["Músculos", "Todo el cuerpo", "Solo el corazón"], c: 1 },
+  { q: "¿Cuántos huesos tiene un adulto?", o: ["206", "300", "180"], c: 0 },
+  { q: "¿Qué gas respiramos para vivir?", o: ["Oxígeno", "Nitrógeno", "Dióxido de carbono"], c: 0 }
+];
+
+let indice = 0;
+let vidas = 3;
+let puntos = 0;
+let comodines = 3;
+
+function iniciarJuego() {
+  document.getElementById("inicio").classList.add("oculto");
+  setTimeout(() => {
+    document.getElementById("inicio").style.display = "none";
+    document.getElementById("juego").style.display = "block";
+    mostrarPregunta();
+  }, 600);
+}
+
+function mostrarPregunta() {
+  if (vidas <= 0) return finDelJuego();
+  if (indice >= preguntas.length) indice = 0;
+
+  const p = preguntas[indice];
+  document.getElementById("pregunta").innerText = p.q;
+
+  const opcionesDiv = document.getElementById("opciones");
+  opcionesDiv.innerHTML = "";
+  p.o.forEach((op, i) => {
+    const btn = document.createElement("button");
+    btn.className = "opcion";
+    btn.textContent = op;
+    btn.onclick = () => verificarRespuesta(i === p.c);
+    opcionesDiv.appendChild(btn);
+  });
+}
+
+function verificarRespuesta(correcta) {
+  if (correcta) {
+    puntos += 2;
+  } else {
+    vidas--;
+  }
+  actualizarHUD();
+  if (vidas <= 0) {
+    finDelJuego();
+  } else {
+    indice++;
+    mostrarPregunta();
+  }
+}
+
+function usarComodin() {
+  if (comodines > 0) {
+    comodines--;
+    indice++;
+    actualizarHUD();
+    mostrarPregunta();
+  } else {
+    alert("⚠️ No te quedan comodines");
+  }
+}
+
+function actualizarHUD() {
+  document.getElementById("vidas").innerText = vidas;
+  document.getElementById("puntos").innerText = puntos;
+  document.getElementById("comodines").innerText = comodines;
+}
+
+function finDelJuego() {
+  document.getElementById("pregunta").style.display = "none";
+  document.getElementById("opciones").style.display = "none";
+  document.getElementById("comodin").style.display = "none";
+  document.getElementById("fin").style.display = "block";
+  document.getElementById("puntosFinales").innerText = puntos;
+}
+
+function reiniciar() {
+  vidas = 3;
+  puntos = 0;
+  comodines = 3;
+  indice = 0;
+  document.getElementById("pregunta").style.display = "block";
+  document.getElementById("opciones").style.display = "block";
+  document.getElementById("comodin").style.display = "inline-block";
+  document.getElementById("fin").style.display = "none";
+  actualizarHUD();
+  mostrarPregunta();
+}
+
+function volverInicio() {
+  document.getElementById("juego").style.display = "none";
+  document.getElementById("inicio").style.display = "flex";
+  document.getElementById("inicio").classList.remove("oculto");
+  vidas = 3;
+  puntos = 0;
+  comodines = 3;
+  indice = 0;
+  actualizarHUD();
+}
+</script>
+
+</body>
+</html>
+
+
