@@ -1,259 +1,224 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Juego de Médicos</title>
-<style>
-  body {
-    margin: 0;
-    background: linear-gradient(180deg, #e3f2fd, #bbdefb);
-    font-family: 'Segoe UI', sans-serif;
-    overflow: hidden;
-  }
-  h1, h2, h3, button { text-align: center; }
-  #gameContainer {
-    width: 100%;
-    height: 90vh;
-    position: relative;
-    overflow: hidden;
-  }
-  .objeto {
-    position: absolute;
-    font-size: 2rem;
-    animation: caer 6s linear forwards;
-    cursor: pointer;
-  }
-  @keyframes caer {
-    from { top: -50px; }
-    to { top: 100vh; opacity: 0; }
-  }
-  #hud {
-    display: flex;
-    justify-content: space-around;
-    padding: 10px;
-    background: #2196f3;
-    color: white;
-    font-weight: bold;
-  }
-  #preguntaBox {
-    text-align: center;
-    margin-top: 10px;
-  }
-  #preguntaBox input {
-    padding: 5px;
-    font-size: 1rem;
-  }
-  #niveles {
-    display: flex;
-    justify-content: space-around;
-    background: #1976d2;
-    color: white;
-    padding: 10px;
-  }
-  .nivel {
-    cursor: pointer;
-    padding: 5px 10px;
-    border-radius: 10px;
-    background: #42a5f5;
-  }
-  .nivel.activo {
-    background: #0d47a1;
-    font-weight: bold;
-  }
-  #mensajeFinal {
-    text-align: center;
-    font-size: 1.3rem;
-    color: #0d47a1;
-    margin-top: 15px;
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🩺 Juego de Médicos</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #e3f2fd, #bbdefb);
+      overflow: hidden;
+    }
+
+    canvas {
+      background-color: #fafafa;
+      display: block;
+      margin: 0 auto;
+    }
+
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #0d47a1;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    #mensaje {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #0d47a1;
+      font-size: 24px;
+      font-weight: bold;
+      display: none;
+    }
+
+    /* --- Portada del juego --- */
+    #portada {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(180deg,#e3f2fd,#bbdefb);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      text-align: center;
+    }
+
+    #portada h1 {
+      font-size: 2.5rem;
+      color: #0d47a1;
+      margin-bottom: 15px;
+    }
+
+    #portada h3 {
+      color: #1565c0;
+      margin-bottom: 10px;
+    }
+
+    #portada ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      color: #1e88e5;
+      font-size: 1.2rem;
+      line-height: 1.8;
+    }
+
+    #btnJugar {
+      margin-top: 30px;
+      background: #0d47a1;
+      color: white;
+      border: none;
+      padding: 12px 35px;
+      border-radius: 25px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transition: background 0.3s ease;
+    }
+
+    #btnJugar:hover {
+      background: #1565c0;
+    }
+  </style>
 </head>
 <body>
-<h1>🩺 Juego de Médicos</h1>
 
-<div id="niveles">
-  <div class="nivel activo" data-nivel="Anatomía">Anatomía</div>
-  <div class="nivel" data-nivel="Cardiología">Cardiología</div>
-  <div class="nivel" data-nivel="Neurología">Neurología</div>
-  <div class="nivel" data-nivel="Urgencias">Urgencias</div>
-  <div class="nivel" data-nivel="Pediatría">Pediatría</div>
-</div>
+  <!-- 🩺 PORTADA -->
+  <div id="portada">
+    <h1>🩺 Juego de Médicos</h1>
+    <h3>Participantes:</h3>
+    <ul>
+      <li>1. Valery Jiménez Villalobos</li>
+      <li>2. Natasha Artavia Garbanzo</li>
+      <li>3. Valentina Ortiz Rojas</li>
+      <li>4. Paola Camacho Rodríguez</li>
+      <li>5. Luis Diego Ulate Rivera</li>
+      <li>6. Juan Carlos Varela Pruaño</li>
+      <li>7. Iam Alfaro Montero</li>
+    </ul>
+    <button id="btnJugar">Comenzar</button>
+  </div>
 
-<div id="hud">
-  <div>❤️ Vidas: <span id="vidas">3</span></div>
-  <div>⏱️ Tiempo: <span id="tiempo">60</span>s</div>
-  <div>💡 Pistas: <span id="pistas">1</span></div>
-  <div>⭐ Puntos: <span id="puntos">0</span></div>
-</div>
+  <!-- 🧠 JUEGO ORIGINAL -->
+  <canvas id="gameCanvas" width="800" height="500"></canvas>
+  <div id="hud">Nivel: <span id="nivel">1</span> | Puntos: <span id="puntos">0</span></div>
+  <div id="mensaje"></div>
 
-<div id="gameContainer"></div>
+  <script>
+    // --- VARIABLES PRINCIPALES ---
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const mensaje = document.getElementById("mensaje");
+    const puntosEl = document.getElementById("puntos");
+    const nivelEl = document.getElementById("nivel");
 
-<div id="preguntaBox">
-  <h3 id="pregunta"></h3>
-  <input type="text" id="respuesta" placeholder="Tu respuesta...">
-  <button onclick="verificarRespuesta()">Responder</button>
-</div>
+    let jugador = { x: 380, y: 430, w: 40, h: 40, color: "#0d47a1" };
+    let objetos = [];
+    let puntos = 0;
+    let nivel = 1;
+    let jugando = false;
 
-<h2 id="mensajeFinal"></h2>
+    // --- FUNCIONES DEL JUEGO ---
+    function iniciarJuego() {
+      jugando = true;
+      puntos = 0;
+      nivel = 1;
+      objetos = [];
+      mensaje.style.display = "none";
+      bucleJuego();
+    }
 
-<script>
-let vidas = 3;
-let tiempo = 60;
-let puntos = 0;
-let pistas = 1;
-let nivelActual = "Anatomía";
-let intervaloTiempo;
-let jugando = false;
-let preguntaActual = null;
+    function crearObjeto() {
+      const tipos = ["💊", "🧠", "❤️", "💉", "🩹"];
+      const tipo = tipos[Math.floor(Math.random() * tipos.length)];
+      objetos.push({
+        x: Math.random() * (canvas.width - 40),
+        y: -40,
+        tipo: tipo,
+        velocidad: 2 + nivel * 0.5
+      });
+    }
 
-const objetos = ["💉", "⏱️", "💡"];
+    function dibujarJugador() {
+      ctx.fillStyle = jugador.color;
+      ctx.fillRect(jugador.x, jugador.y, jugador.w, jugador.h);
+    }
 
-const preguntasPorNivel = {
-  "Anatomía": [
-    { pregunta: "¿Cuál es el órgano encargado de bombear la sangre?", respuesta: "corazón" },
-    { pregunta: "¿Dónde se encuentra el fémur?", respuesta: "pierna" }
-  ],
-  "Cardiología": [
-    { pregunta: "¿Qué vasos llevan la sangre desde el corazón?", respuesta: "arterias" },
-    { pregunta: "¿Qué válvula separa la aurícula izquierda del ventrículo izquierdo?", respuesta: "mitral" }
-  ],
-  "Neurología": [
-    { pregunta: "¿Cuál es la célula principal del sistema nervioso?", respuesta: "neurona" },
-    { pregunta: "¿Qué parte del cerebro controla el equilibrio?", respuesta: "cerebelo" }
-  ],
-  "Urgencias": [
-    { pregunta: "¿Qué hacer ante una fractura evidente?", respuesta: "inmovilizar" },
-    { pregunta: "¿Qué número se debe llamar ante una emergencia?", respuesta: "911" }
-  ],
-  "Pediatría": [
-    { pregunta: "¿A qué edad suelen salir los primeros dientes de leche?", respuesta: "6 meses" },
-    { pregunta: "¿Qué vacuna se aplica al nacer?", respuesta: "bcg" }
-  ]
-};
+    function dibujarObjetos() {
+      ctx.font = "30px Arial";
+      objetos.forEach(o => ctx.fillText(o.tipo, o.x, o.y));
+    }
 
-// Iniciar el juego
-function iniciarJuego() {
-  jugando = true;
-  tiempo = 60;
-  vidas = 3;
-  puntos = 0;
-  pistas = 1;
-  actualizarHUD();
-  mostrarPregunta();
-  intervaloTiempo = setInterval(actualizarTiempo, 1000);
-  generarObjetos();
-}
-iniciarJuego();
+    function moverObjetos() {
+      objetos.forEach(o => o.y += o.velocidad);
+      objetos = objetos.filter(o => o.y < canvas.height + 50);
+    }
 
-function actualizarHUD() {
-  document.getElementById("vidas").textContent = vidas;
-  document.getElementById("tiempo").textContent = tiempo;
-  document.getElementById("pistas").textContent = pistas;
-  document.getElementById("puntos").textContent = puntos;
-}
+    function detectarColisiones() {
+      objetos.forEach((o, i) => {
+        if (
+          o.x < jugador.x + jugador.w &&
+          o.x + 30 > jugador.x &&
+          o.y < jugador.y + jugador.h &&
+          o.y + 30 > jugador.y
+        ) {
+          puntos += 10;
+          objetos.splice(i, 1);
+          puntosEl.textContent = puntos;
+          if (puntos % 100 === 0) {
+            nivel++;
+            nivelEl.textContent = nivel;
+            mostrarMensaje("¡Nivel superado!");
+          }
+        }
+      });
+    }
 
-// Actualizar tiempo
-function actualizarTiempo() {
-  if (!jugando) return;
-  tiempo--;
-  actualizarHUD();
-  if (tiempo <= 0) gameOver();
-}
+    function mostrarMensaje(texto) {
+      mensaje.textContent = texto;
+      mensaje.style.display = "block";
+      setTimeout(() => (mensaje.style.display = "none"), 1500);
+    }
 
-// Generar objetos que caen
-function generarObjetos() {
-  const contenedor = document.getElementById("gameContainer");
-  setInterval(() => {
-    if (!jugando) return;
-    const obj = document.createElement("div");
-    obj.classList.add("objeto");
-    const tipo = objetos[Math.floor(Math.random() * objetos.length)];
-    obj.textContent = tipo;
-    obj.style.left = Math.random() * 90 + "%";
-    obj.onclick = () => { recogerObjeto(tipo); obj.remove(); };
-    contenedor.appendChild(obj);
-    setTimeout(() => obj.remove(), 6000);
-  }, 1500);
-}
+    function bucleJuego() {
+      if (!jugando) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (Math.random() < 0.03) crearObjeto();
+      moverObjetos();
+      dibujarObjetos();
+      dibujarJugador();
+      detectarColisiones();
+      requestAnimationFrame(bucleJuego);
+    }
 
-// Efectos de los objetos
-function recogerObjeto(tipo) {
-  if (tipo === "💉") { vidas++; }
-  else if (tipo === "⏱️") { tiempo += 5; }
-  else if (tipo === "💡") { pistas++; mostrarPista(); }
-  actualizarHUD();
-}
+    // --- MOVIMIENTO ---
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft" && jugador.x > 0) jugador.x -= 20;
+      if (e.key === "ArrowRight" && jugador.x < canvas.width - jugador.w)
+        jugador.x += 20;
+    });
 
-// Mostrar pregunta
-function mostrarPregunta() {
-  const lista = preguntasPorNivel[nivelActual];
-  preguntaActual = lista[Math.floor(Math.random() * lista.length)];
-  document.getElementById("pregunta").textContent = preguntaActual.pregunta;
-  document.getElementById("respuesta").value = "";
-}
+    // --- PORTADA ---
+    const portada = document.getElementById("portada");
+    const btnJugar = document.getElementById("btnJugar");
 
-// Verificar respuesta
-function verificarRespuesta() {
-  const resp = document.getElementById("respuesta").value.trim().toLowerCase();
-  if (resp === "") return;
-  if (resp === preguntaActual.respuesta.toLowerCase()) {
-    puntos += 10;
-    mostrarMensaje("✅ ¡Correcto!");
-    if (puntos % 20 === 0) siguienteNivel();
-  } else {
-    vidas--;
-    mostrarMensaje("❌ Incorrecto, la respuesta era: " + preguntaActual.respuesta);
-    if (vidas <= 0) gameOver();
-  }
-  actualizarHUD();
-  mostrarPregunta();
-}
-
-function mostrarPista() {
-  if (pistas <= 0) return;
-  pistas--;
-  const pista = preguntaActual.respuesta[0].toUpperCase() + "..." ;
-  mostrarMensaje("💡 Pista: empieza con " + pista);
-  actualizarHUD();
-}
-
-// Cambiar nivel
-function siguienteNivel() {
-  const niveles = ["Anatomía", "Cardiología", "Neurología", "Urgencias", "Pediatría"];
-  const index = niveles.indexOf(nivelActual);
-  if (index < niveles.length - 1) {
-    nivelActual = niveles[index + 1];
-    document.querySelectorAll(".nivel").forEach(n => n.classList.remove("activo"));
-    document.querySelector(`[data-nivel="${nivelActual}"]`).classList.add("activo");
-    mostrarMensaje("🏅 Nuevo nivel: " + nivelActual);
-  } else {
-    ganarJuego();
-  }
-}
-
-// Mensajes en pantalla
-function mostrarMensaje(texto) {
-  const msg = document.getElementById("mensajeFinal");
-  msg.textContent = texto;
-  setTimeout(() => msg.textContent = "", 3000);
-}
-
-// Fin del juego
-function gameOver() {
-  jugando = false;
-  clearInterval(intervaloTiempo);
-  mostrarMensaje("💀 Fin del juego. Puntaje: " + puntos);
-}
-
-// Ganar el juego
-function ganarJuego() {
-  jugando = false;
-  clearInterval(intervaloTiempo);
-  mostrarMensaje("🏆 ¡Completaste todas las especialidades con " + puntos + " puntos!");
-  localStorage.setItem("medallaMedica", "true");
-}
-</script>
+    btnJugar.addEventListener("click", () => {
+      portada.style.transition = "opacity 1s ease";
+      portada.style.opacity = "0";
+      setTimeout(() => portada.remove(), 1000);
+      iniciarJuego();
+    });
+  </script>
 </body>
 </html>
+
 
