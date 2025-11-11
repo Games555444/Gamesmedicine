@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Médico en Misión — Sala de Urgencias (Final)</title>
+  <style>
+    :root{--bg:#071024;--panel:#0b1220;--accent:#06b6d4;--accent2:#7c3aed;--muted:#94a3b8;--good:#10b981;--bad:#ef4444;--glass:rgba(255,255,255,0.03);font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#031024 0%, #071728 60%);color:#e6eef6}
+    .app{max-width:1200px;margin:18px auto;padding:18px}
+    header{display:flex;align-items:center;gap:12px}
+    .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .game-wrap{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-top:16px}
+    .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;box-shadow:0 12px 30px rgba(2,6,23,0.6)}
+
+    /* Left: game stage */
+    .stage{position:relative;min-height:640px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
+    .stage-header{display:flex;justify-content:space-between;align-items:center;padding:10px}
+    .patient-area{display:flex;gap:18px;padding:14px}
+    .patient-card{width:340px;background:linear-gradient(180deg,#071022,#09162b);border-radius:12px;padding:12px}
+    .avatar{width:100%;height:240px;border-radius:10px;background:linear-gradient(180deg,#102030,#0b1620);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:84px}
+    .vitals{margin-top:10px}
+    .bar{height:16px;background:rgba(255,255,255,0.04);border-radius:999px;overflow:hidden}
+    .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--good),#60a5fa);width:100%;transition:width .5s ease}
+    .stat-row{display:flex;justify-content:space-between;margin-top:8px;color:var(--muted);font-size:13px}
+
+    .stage-canvas{flex:1;position:relative;background:linear-gradient(180deg,#082433,#061827);border-radius:8px;margin:12px;padding:12px;overflow:hidden}
+    .spawn-item{position:absolute;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);backdrop-filter:blur(4px);cursor:pointer;border:1px solid rgba(255,255,255,0.03);font-weight:700;user-select:none}
+    .spawn-item.syringe{background:linear-gradient(90deg,#ecfccb,#bbf7d0);color:#07211a}
+    .spawn-item.clock{background:linear-gradient(90deg,#e0f2fe,#bae6fd);color:#052032}
+    .spawn-item.hint{background:linear-gradient(90deg,#fee2e2,#fecaca);color:#2b0a0a}
+
+    .hud{display:flex;gap:12px;align-items:center}
+    .score{font-weight:800}
+
+    /* Right panel */
+    aside.controls{position:sticky;top:18px;height:fit-content}
+    .controls h3{margin:6px 0 8px}
+    .btn{display:inline-block;padding:10px 12px;border-radius:10px;background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:white;font-weight:700;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+    .level-list{display:flex;flex-direction:column;gap:8px}
+
+    .center{text-align:center}
+    .small{font-size:13px;color:var(--muted)}
+
+    /* entrance doors */
+    .doors{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;z-index:9999}
+    .door{flex:1;background:linear-gradient(180deg,#0b1220,#0f2130);display:flex;align-items:center;justify-content:center;transition:transform 900ms cubic-bezier(.2,.9,.2,1)}
+    .door .label{color:var(--muted);font-size:28px;opacity:.6}
+    .door.open-left{transform:translateX(-105%)}
+    .door.open-right{transform:translateX(105%)}
+
+    /* question modal */
+    .qmodal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,#071022,#07182a);padding:18px;border-radius:12px;width:640px;max-width:92%;box-shadow:0 30px 80px rgba(2,6,23,0.8);z-index:999}
+    .qmodal .qtext{font-size:18px;margin-bottom:12px}
+    .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .optbtn{padding:10px;border-radius:10px;background:var(--glass);cursor:pointer;border:1px solid rgba(255,255,255,0.03);font-weight:700}
+    .optbtn.disabled{opacity:.5;pointer-events:none}
+
+    /* mobile layout */
+    @media(max-width:980px){.game-wrap{grid-template-columns:1fr}.patient-card{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">ME</div>
+      <div>
+        <h1>Médico en Misión — Sala de Urgencias</h1>
+        <p class="lead">Simulador hospitalario: salva pacientes respondiendo rápido y usando power-ups. Compatible con GitHub Pages.</p>
+      </div>
+    </header>
+
+    <div class="game-wrap">
+      <section class="panel stage" id="stage">
+        <div class="stage-header">
+          <div class="hud">
+            <div class="score">Puntos: <span id="score">0</span></div>
+            <div class="small">Nivel: <strong id="levelName">Anatomía</strong></div>
+            <div class="small">Récord: <strong id="best">0</strong></div>
+          </div>
+          <div>
+            <button class="btn" id="startBtn">Iniciar Partida</button>
+            <button class="btn ghost" id="pauseBtn">Pausar</button>
+          </div>
+        </div>
+
+        <div class="patient-area">
+          <div class="patient-card">
+            <div class="avatar" id="avatar">🙂</div>
+            <div class="vitals">
+              <div class="small">Vida del paciente</div>
+              <div class="bar" style="margin-top:6px"><i id="patientBar"></i></div>
+              <div class="stat-row"><div class="small">Tiempo: <span id="roundTimer">--</span></div><div class="small">Errores: <span id="errors">0</span></div></div>
+            </div>
+          </div>
+
+          <div class="stage-canvas" id="stageCanvas">
+            <div id="floatingHints" style="position:absolute;left:12px;top:10px;color:var(--muted);font-size:13px">Burbujas: <span id="hintsCount">0</span></div>
+            <!-- doors overlay for intro animation -->
+            <div class="doors" id="doors" aria-hidden="true">
+              <div class="door" id="doorLeft"><div class="label">Hospital</div></div>
+              <div class="door" id="doorRight"><div class="label">Entrada</div></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <aside class="panel controls">
+        <h3>Controles & Niveles</h3>
+        <div class="level-list">
+          <button class="btn ghost levelBtn" data-level="Anatomía">Anatomía (Fácil)</button>
+          <button class="btn ghost levelBtn" data-level="Cardiología">Cardiología (Medio)</button>
+          <button class="btn ghost levelBtn" data-level="Neurología">Neurología (Difícil)</button>
+          <button class="btn ghost levelBtn" data-level="Urgencias">Urgencias (Pro)</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small">Tiempo por pregunta (s)</div>
+          <input id="timePerQ" type="range" min="8" max="40" value="18" style="width:100%">
+          <div style="display:flex;justify-content:space-between;color:var(--muted);font-size:13px"><span>8s</span><span id="timeLabel">18s</span><span>40s</span></div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn" id="saveBtn">Guardar</button>
+          <button class="btn ghost" id="loadBtn">Cargar</button>
+        </div>
+
+        <div style="margin-top:12px;color:var(--muted);font-size:13px">
+          Consejo: recoge jeringas y burbujas antes de que desaparezcan — pueden salvar al paciente.
+        </div>
+      </aside>
+    </div>
+
+    <footer style="margin-top:14px;color:var(--muted);font-size:13px">Sube este archivo a GitHub y actívalo con GitHub Pages para compartir el juego.</footer>
+  </div>
+
+  <!-- Question modal (hidden until needed) -->
+  <div id="qmodal" class="qmodal" style="display:none">
+    <div class="qtext" id="qtext">Pregunta</div>
+    <div class="opts" id="opts"></div>
+    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+      <div class="small">Pista: <span id="qhint" style="color:var(--muted)">---</span></div>
+      <div>
+        <button class="btn ghost" id="useHint">Usar pista (-2 pts)</button>
+        <button class="btn" id="submitClose">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Ensure DOM loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      // --- Data: questions by level (kept short, you can expand) ---
+      const LEVELS = {
+        'Anatomía': [
+          {q:'¿Cuál es el hueso más largo del cuerpo humano?', a:['Húmero','Fémur','Tibia','Radio'], r:1, hint:'Se encuentra en la pierna'},
+          {q:'¿Dónde se producen la mayor parte de las células sanguíneas?', a:['Hígado','Médula ósea','Bazo','Páncreas'], r:1, hint:'Órgano productor de células sanguíneas'},
+          {q:'¿Cuál es la unidad funcional del riñón?', a:['Neurona','Nefrona','Alvéolo','Osteona'], r:1, hint:'Filtra y reabsorbe en el riñón'}
+        ],
+        'Cardiología': [
+          {q:'¿Cuál válvula separa aurícula izquierda y ventrículo izquierdo?', a:['Tricúspide','Mitral','Pulmonar','Aórtica'], r:1, hint:'También llamada bicúspide'},
+          {q:'¿Qué arteria irriga el miocardio?', a:['Coronaria','Femoral','Cefálica','Carótida'], r:0, hint:'Su bloqueo puede causar infarto'},
+          {q:'¿Frecuencia cardiaca normal en adulto en reposo (aprox.)?', a:['30-50','60-100','110-140','140-180'], r:1, hint:'Entre 60 y 100 lpm'}
+        ],
+        'Neurología': [
+          {q:'¿Qué área cerebral es responsable del lenguaje en la mayoría de personas?', a:['Área de Broca','Cerebelo','Hipotálamo','Núcleo caudado'], r:0, hint:'Relacionada con la producción de habla'},
+          {q:'¿Cuál es el principal neurotransmisor excitador?', a:['GABA','Glutamato','Dopamina','Serotonina'], r:1, hint:'Abundante en sinapsis excitadoras'},
+          {q:'¿Qué nervio controla los músculos de expresión facial?', a:['Nervio facial (VII)','Trigémino (V)','Óptico (II)','Glosofaríngeo (IX)'], r:0, hint:'Es el VII par craneal'}
+        ],
+        'Urgencias': [
+          {q:'En paro cardiaco, la maniobra inmediata es?', a:['RCP','Aspirar vías','Administrar antibiótico','Elevar piernas'], r:0, hint:'Compresiones torácicas y ventilaciones'},
+          {q:'Signo de perfusión deficiente en choque?', a:['Pulsos fuertes','Piel fría y pegajosa','Mucha sed','Pupilas pequeñas'], r:1, hint:'Signos de mala perfusión periférica'},
+          {q:'Tratamiento inicial para anafilaxia grave?', a:['Antihistamínicos','Adrenalina IM','Antibiótico','Aspirina'], r:1, hint:'Inyección intramuscular de emergencia'}
+        ]
+      };
+
+      // --- State ---
+      let currentLevel = 'Anatomía';
+      let score = 0; let best = Number(localStorage.getItem('me_best')||0);
+      let patientHP = 100; const maxHP = 100;
+      let qTimer = null; let spawnInterval = null; let patientDrainInterval = null;
+      let activeQuestion = null; let playing = false; let hintsAvailable = 0; let errors = 0;
+
+      // --- DOM refs ---
+      const scoreEl = document.getElementById('score'); const bestEl = document.getElementById('best');
+      const patientBar = document.getElementById('patientBar'); const avatar = document.getElementById('avatar');
+      const stageCanvas = document.getElementById('stageCanvas'); const levelName = document.getElementById('levelName');
+      const qmodal = document.getElementById('qmodal'); const qtext = document.getElementById('qtext'); const opts = document.getElementById('opts');
+      const qhint = document.getElementById('qhint'); const hintsCount = document.getElementById('hintsCount');
+      const roundTimerEl = document.getElementById('roundTimer'); const errorsEl = document.getElementById('errors');
+      const doors = document.getElementById('doors'); const doorLeft = document.getElementById('doorLeft'); const doorRight = document.getElementById('doorRight');
+
+      // safe audio beep (no external files)
+      function beep(freq=440,dur=0.08,vol=0.02){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(); const g=ctx.createGain(); o.type='sine'; o.frequency.value=freq; g.gain.value=vol; o.connect(g); g.connect(ctx.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur); setTimeout(()=>{ o.stop(); ctx.close(); }, dur*1000); }catch(e){} }
+
+      // UI update
+      function uiUpdate(){ scoreEl.textContent = score; bestEl.textContent = best; patientBar.style.width = patientHP + '%'; levelName.textContent = currentLevel; hintsCount.textContent = hintsAvailable; errorsEl.textContent = errors; }
+
+      // --- entrance animation: doors open then play monitor beep ---
+      function playEntranceAnimation(callback){ doors.style.display='flex'; // animate doors open
+        setTimeout(()=>{ doorLeft.classList.add('open-left'); doorRight.classList.add('open-right'); // play a couple beeps like monitor
+          setTimeout(()=>{ beep(440,0.12,0.03); setTimeout(()=>{ beep(660,0.08,0.02); if(callback) callback(); },180); },300); },80);
+        // hide doors after animation
+        setTimeout(()=>{ doors.style.display='none'; },1600);
+      }
+
+      // --- game control functions ---
+      function resetGame(){ stopAll(); score=0; patientHP=maxHP; hintsAvailable=0; errors=0; activeQuestion=null; playing=false; uiUpdate(); }
+      function startGame(){ if(playing) return; // start entrance then actual start
+        playEntranceAnimation(()=>{ playing=true; score=0; patientHP=maxHP; hintsAvailable=0; errors=0; uiUpdate(); startSpawn(); startPatientDrain(); nextQuestion(); saveBest(); }); }
+      function stopAll(){ if(spawnInterval) clearInterval(spawnInterval); if(qTimer) clearInterval(qTimer); if(patientDrainInterval) clearInterval(patientDrainInterval); spawnInterval=null; qTimer=null; patientDrainInterval=null; }
+
+      // patient drain speed by level
+      function levelSpeed(lv){ switch(lv){ case 'Anatomía': return 0.6; case 'Cardiología': return 0.9; case 'Neurología': return 1.4; case 'Urgencias': return 2.2; default:return 1; } }
+
+      function startPatientDrain(){ if(patientDrainInterval) clearInterval(patientDrainInterval); const speed = levelSpeed(currentLevel); patientDrainInterval = setInterval(()=>{ if(!playing) return; patientHP = Math.max(0, patientHP - speed); uiUpdate(); if(patientHP <= 0){ endRound(false); } }, 1200); }
+
+      // spawn items
+      function startSpawn(){ if(spawnInterval) clearInterval(spawnInterval); spawnInterval = setInterval(()=>{ spawnRandomItem(); }, 2200); }
+      function spawnRandomItem(){ if(!playing) return; const types=['syringe','clock','hint']; const t = types[Math.floor(Math.random()*types.length)]; const el=document.createElement('div'); el.className='spawn-item '+t; el.textContent = t==='syringe'? '💉 Jeringa' : (t==='clock'?'⏱️ Tiempo':'🫧 Pista'); const x = Math.random()*(stageCanvas.clientWidth-140); const y = 60 + Math.random()*(stageCanvas.clientHeight-160); el.style.left = x+'px'; el.style.top = y+'px'; stageCanvas.appendChild(el);
+        // float
+        let vy=(Math.random()*0.6+0.2)*(Math.random()>0.5?1:-1); const floatInt=setInterval(()=>{ if(!el.parentElement){ clearInterval(floatInt); return; } const curY=parseFloat(el.style.top); el.style.top=(curY+vy)+'px'; if(curY<20||curY>stageCanvas.clientHeight-60) vy*=-1; },180);
+        // lifetime
+        const life=7000+Math.random()*8000; const timeout=setTimeout(()=>{ if(el.parentElement) el.remove(); clearInterval(floatInt); }, life);
+        el.addEventListener('click', ()=>{ if(!playing) return; clearTimeout(timeout); clearInterval(floatInt); collectItem(t); el.remove(); }); }
+
+      function collectItem(type){ if(type==='syringe'){ patientHP = Math.min(maxHP, patientHP+25); score += 8; beep(880,0.08); } else if(type==='clock'){ // add time to current question if active
+          score += 6; beep(720,0.08); if(qTimer) { // add seconds by restarting timer with extra time
+            clearInterval(qTimer); startQuestionTimer((Number(document.getElementById('timePerQ').value) || 18) + 6); }
+        } else if(type==='hint'){ hintsAvailable +=1; score +=4; beep(960,0.08); } uiUpdate(); }
+
+      function clearStageItems(){ stageCanvas.querySelectorAll('.spawn-item').forEach(n=>n.remove()); }
+
+      // Questions
+      function nextQuestion(){ if(!playing) return; if(activeQuestion) return; const pool = LEVELS[currentLevel]; const q = pool[Math.floor(Math.random()*pool.length)]; activeQuestion = JSON.parse(JSON.stringify(q)); showQuestion(activeQuestion); }
+
+      function showQuestion(q){ qmodal.style.display='block'; qtext.textContent = q.q; qhint.textContent = '---'; opts.innerHTML=''; const letters=['A','B','C','D']; const arr = q.a.map((t,i)=>({t,i})); shuffle(arr); arr.forEach((o,idx)=>{ const b=document.createElement('div'); b.className='optbtn'; b.dataset.index = o.i; b.innerHTML = `<strong>${letters[idx]})</strong> ${o.t}`; b.addEventListener('click', ()=> chooseAnswer(b)); opts.appendChild(b); }); startQuestionTimer(Number(document.getElementById('timePerQ').value) || 18); }
+
+      function startQuestionTimer(seconds){ if(qTimer) clearInterval(qTimer); let t=seconds; roundTimerEl.textContent = t+'s'; qTimer = setInterval(()=>{ t--; roundTimerEl.textContent = t+'s'; if(t<=4) roundTimerEl.style.color='orange'; if(t<=2) roundTimerEl.style.color='red'; if(t<=0){ clearInterval(qTimer); qTimer=null; // penalty
+            errors +=1; patientHP = Math.max(0, patientHP - 14); score = Math.max(0, score - 5); beep(220,0.12); uiUpdate(); closeQuestion(); if(patientHP<=0) endRound(false); else setTimeout(()=> nextQuestion(),800); } },1000); }
+
+      function stopQuestionTimer(){ if(qTimer) clearInterval(qTimer); qTimer=null; roundTimerEl.textContent='--'; roundTimerEl.style.color='inherit'; }
+
+      function chooseAnswer(btn){ if(!activeQuestion) return; stopQuestionTimer(); const chosen = Number(btn.dataset.index); const correct = chosen === activeQuestion.r; Array.from(opts.children).forEach(o=>o.classList.add('disabled'));
+        if(correct){ btn.style.outline='4px solid rgba(16,185,129,0.12)'; score += 15; patientHP = Math.min(maxHP, patientHP+18); beep(880,0.08); avatar.textContent='😄'; } else { btn.style.outline='4px solid rgba(239,68,68,0.12)'; errors +=1; patientHP = Math.max(0, patientHP - 14); score = Math.max(0, score - 6); beep(200,0.12); avatar.textContent='😟'; }
+        uiUpdate(); setTimeout(()=>{ avatar.textContent='🙂'; closeQuestion(); if(patientHP<=0) endRound(false); else nextQuestion(); },900);
+      }
+
+      function closeQuestion(){ qmodal.style.display='none'; activeQuestion=null; stopQuestionTimer(); }
+
+      // hint use
+      document.getElementById('useHint').addEventListener('click', ()=>{ if(!activeQuestion) return; if(hintsAvailable<=0){ alert('No tienes burbujas de pista. Recoge burbujas rosas en la sala.'); return; } const optElems = Array.from(opts.children).filter(o=>!o.classList.contains('disabled')); const wrongs = optElems.filter(o=>Number(o.dataset.index)!==activeQuestion.r); if(wrongs.length){ const rEl = wrongs[Math.floor(Math.random()*wrongs.length)]; rEl.classList.add('disabled'); hintsAvailable -=1; score = Math.max(0, score-2); uiUpdate(); qhint.textContent = activeQuestion.hint || '...'; } });
+
+      // end round
+      function endRound(win){ stopAll(); clearStageItems(); playing=false; stopQuestionTimer(); activeQuestion=null; if(win){ score += 40; beep(1200,0.12); setTimeout(()=> alert('✅ Paciente salvado! Nivel: '+currentLevel+' — Puntaje: '+score), 200); } else { beep(160,0.18); setTimeout(()=> alert('❌ El paciente no sobrevivió. Puntaje: '+score), 200); }
+        if(score>best){ best=score; localStorage.setItem('me_best', best); }
+        uiUpdate(); }
+
+      // helpers: shuffle
+      function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } }
+
+      // save/load
+      document.getElementById('saveBtn').addEventListener('click', ()=>{ const data={level:currentLevel,score,patientHP,errors,hintsAvailable}; localStorage.setItem('me_save', JSON.stringify(data)); alert('Progreso guardado.'); });
+      document.getElementById('loadBtn').addEventListener('click', ()=>{ const raw=localStorage.getItem('me_save'); if(!raw){ alert('No hay progreso guardado.'); return; } const d=JSON.parse(raw); currentLevel=d.level||currentLevel; score=d.score||0; patientHP=d.patientHP||100; errors=d.errors||0; hintsAvailable=d.hintsAvailable||0; levelName.textContent=currentLevel; uiUpdate(); alert('Progreso cargado.'); });
+
+      // UI bindings
+      document.getElementById('startBtn').addEventListener('click', ()=>{ startGame(); });
+      document.getElementById('pauseBtn').addEventListener('click', ()=>{ if(!playing) return; playing=false; stopAll(); stopQuestionTimer(); alert('Juego pausado. Pulsa Iniciar para continuar.'); });
+      document.getElementById('submitClose').addEventListener('click', ()=>{ closeQuestion(); });
+      document.getElementById('timePerQ').addEventListener('input', (e)=>{ document.getElementById('timeLabel').textContent = e.target.value+'s'; });
+
+      document.querySelectorAll('.levelBtn').forEach(b=>{ b.addEventListener('click', ()=>{ currentLevel=b.dataset.level; levelName.textContent=currentLevel; resetGame(); uiUpdate(); }); });
+
+      // load best initially
+      bestEl.textContent = best; uiUpdate();
+
+      // Expose for debugging in console if needed
+      window._medico = { startGame, resetGame, nextQuestion };
+    });
+  </script>
+</body>
+</html>
